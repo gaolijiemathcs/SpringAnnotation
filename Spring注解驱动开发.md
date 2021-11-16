@@ -1170,3 +1170,1469 @@ Spring底层对BeanPostProcessor的使用
 bean赋值 注入其他组件 @Autowared 生命周期注解功能 @Async  BeanPostProcessor ....
 ```
 
+
+
+## @Value赋值
+
+对对象进行赋值
+
+原始的方式是在xml配置文件当中进行赋值
+
+```xml
+    <bean id="person" class="com.gao.spring.bean.Person" scope="prototype" >
+        <property name="age" value="18"/>
+        <property name="name" value="zhangsan"/>
+    </bean>
+```
+
+现在我们通过配置类的方式：
+
+```java
+package com.gao.spring.config;
+
+import com.gao.spring.bean.Person;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+
+@Configuration
+public class MainConfigOfPropertyValues {
+    @Bean
+    public Person person() {
+        return new Person();
+    }
+}
+
+```
+
+测试类：
+
+```java
+public class IOCTest_PropertyValue {
+    // 1. 创建ioc容器
+    AnnotationConfigApplicationContext applicationContext = new AnnotationConfigApplicationContext(MainConfigOfPropertyValues.class);
+
+    @Test
+    public void test01() {
+        printBeans(applicationContext);
+        System.out.println("=====================");
+        Person person = (Person) applicationContext.getBean("person");
+        System.out.println(person);
+        // 关闭容器
+        applicationContext.close();
+    }
+
+    private void printBeans(AnnotationConfigApplicationContext applicationContext) {
+        String[] beanDefinitionNames = applicationContext.getBeanDefinitionNames();
+        for(String name :beanDefinitionNames) {
+            System.out.println(name);
+        }
+    }
+}
+```
+
+得到初始的情况下 是没有值的
+
+```java
+org.springframework.context.annotation.internalConfigurationAnnotationProcessor
+org.springframework.context.annotation.internalAutowiredAnnotationProcessor
+org.springframework.context.annotation.internalRequiredAnnotationProcessor
+org.springframework.context.annotation.internalCommonAnnotationProcessor
+org.springframework.context.event.internalEventListenerProcessor
+org.springframework.context.event.internalEventListenerFactory
+mainConfigOfPropertyValues
+person
+=====================
+Person{name='null', age=null}
+```
+
+
+
+更改类中使用@Value
+
+    // 使用value赋值
+    // 1、基本数值
+    // 2、可以写SppEL #{} spring表达式可以运算
+    // 3、可以用${} 取出配置文件[properties]中的值(在运行环境中的值)
+
+```java
+public class Person {
+
+    // 使用value赋值
+    // 1、基本数值
+    // 2、可以写SppEL #{} spring表达式可以运算
+    // 3、可以用${} 取出配置文件中的值(在运行环境中的值)
+    
+    @Value("张三")
+    private String name;
+    @Value("#{20-2}")
+    private Integer age;
+
+    public Person(String name, Integer age) {
+        this.name = name;
+        this.age = age;
+    }
+	.....
+}
+```
+
+输出：
+
+```java
+org.springframework.context.annotation.internalConfigurationAnnotationProcessor
+org.springframework.context.annotation.internalAutowiredAnnotationProcessor
+org.springframework.context.annotation.internalRequiredAnnotationProcessor
+org.springframework.context.annotation.internalCommonAnnotationProcessor
+org.springframework.context.event.internalEventListenerProcessor
+org.springframework.context.event.internalEventListenerFactory
+mainConfigOfPropertyValues
+person
+=====================
+Person{name='张三', age=18}
+```
+
+
+
+在配置文件中的设置方式：
+
+在属性中新增一个属性
+
+```java
+public class Person {
+
+    // 使用value赋值
+    // 1、基本数值
+    // 2、可以写SppEL #{} spring表达式可以运算
+    // 3、可以用${} 取出配置文件中的值(在运行环境中的值)
+
+    @Value("张三")
+    private String name;
+    @Value("#{20-2}")
+    private Integer age;
+
+    private String nickName;
+    
+}
+```
+
+创建一个person.properties
+
+```
+person.nickName=tom
+```
+
+在原始的时候我们想通过xml配置文件去获取${}配置文件的信息 需要加上新的\<context:properties>
+
+```xml
+<context:property-placeholder location="classpath:person.properties"/>
+
+<bean id="person" class="com.gao.spring.bean.Person" scope="prototype" >
+        <property name="age" value="18"/>
+        <property name="name" value="zhangsan"/>
+        <property name="nickName" value="${person.nickName}"/>
+    </bean>
+```
+
+
+
+在注解的方式下，我们在配置类当中使用@PropertySource 读取外部配置文件中的k/v保存到运行的环境变量中。
+
+```
+//使用@PropertySource 读取外部配置文件中的k/v保存到运行的环境变量中
+@PropertySource(value = {"classpath:/person.properties"})
+@Configuration
+public class MainConfigOfPropertyValues {
+    @Bean
+    public Person person() {
+        return new Person();
+    }
+}
+```
+
+
+
+就可以在Person属性中直接使用${}来引入遍历
+
+```java
+public class Person {
+
+    // 使用value赋值
+    // 1、基本数值
+    // 2、可以写SppEL #{} spring表达式可以运算
+    // 3、可以用${} 取出配置文件中的值(在运行环境中的值)
+
+    @Value("张三")
+    private String name;
+    @Value("#{20-2}")
+    private Integer age;
+
+    @Value("${person.nickName}")
+    private String nickName;
+ 	
+    //get set方法
+    ....
+}
+```
+
+
+
+我们也可以直接使用
+
+```
+ConfigurableEnvironment environment = applicationContext.getEnvironment();
+        String property = environment.getProperty("person.nickName=");
+        System.out.println(property);
+```
+
+在测试类中获取环境变量来印证
+
+
+
+```java
+public class IOCTest_PropertyValue {
+    // 1. 创建ioc容器
+    AnnotationConfigApplicationContext applicationContext = new AnnotationConfigApplicationContext(MainConfigOfPropertyValues.class);
+
+    @Test
+    public void test01() {
+        printBeans(applicationContext);
+        System.out.println("=====================");
+        Person person = (Person) applicationContext.getBean("person");
+        System.out.println(person);
+
+        ConfigurableEnvironment environment = applicationContext.getEnvironment();
+        String property = environment.getProperty("person.nickName");
+        System.out.println(property);
+        // 关闭容器
+        applicationContext.close();
+    }
+
+    private void printBeans(AnnotationConfigApplicationContext applicationContext) {
+        String[] beanDefinitionNames = applicationContext.getBeanDefinitionNames();
+        for(String name :beanDefinitionNames) {
+            System.out.println(name);
+        }
+    }
+}
+
+```
+
+输出：
+
+```
+org.springframework.context.annotation.internalConfigurationAnnotationProcessor
+org.springframework.context.annotation.internalAutowiredAnnotationProcessor
+org.springframework.context.annotation.internalRequiredAnnotationProcessor
+org.springframework.context.annotation.internalCommonAnnotationProcessor
+org.springframework.context.event.internalEventListenerProcessor
+org.springframework.context.event.internalEventListenerFactory
+mainConfigOfPropertyValues
+person
+=====================
+Person{name='张三', age=18, nickName='tom'}
+tom
+```
+
+
+
+
+
+## 自动装配
+
+### (1) @Autowired @Qualifier @Primary
+
+#### @Autowired
+
+```
+/**
+ * 自动装配;
+ *  Spring利用依赖注入(DI) 完成对IOC容器中各个组件的依赖关系赋值
+ *
+ *  1) @Autowired: 自动注入
+ *      1) 默认有限按照类型去容器中找对应的组件 applicationContext.getBean(BookDao.class);  找到就赋值
+ *      2) 如果友多个同一个类型的的Dao 如果找到多个相同类型的组件 再将属性的名称作为组件id去容器中查找
+ *      3) @Qualifier("bookDao") 来指定需要装配的组件的id 而不是使用默认的属性名
+ *      4) 自动装配默认一定要将属性赋值好，没有就会报错
+ *      5) @Primary: 让Spring进行自动装配的时候 默认使用首选的bean
+ *              也可以继续使用@Qualifier指定需要装配的bean的名字
+ *      BookService {
+ *          @Autowired
+ *          BookDao bookDao
+ *      }
+ *
+ */
+```
+
+
+
+修改service层：
+
+```java
+package com.gao.spring.service;
+
+import com.gao.spring.dao.BookDao;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.stereotype.Service;
+
+@Service
+public class BookService {
+
+    // @Qualifier("bookDao2") 指定默认的组件id
+    @Qualifier("bookDao2")
+    @Autowired
+    private BookDao bookDao;
+
+    public void print() {
+        System.out.println(bookDao);
+    }
+
+    @Override
+    public String toString() {
+        return "BookService{" +
+                "bookDao=" + bookDao +
+                '}';
+    }
+}
+```
+
+#### @Qualifier
+
+注意此处@Qualifier 为指定默认的组件是调用id=bookDao2的组件
+
+修改Dao层：
+
+```java
+package com.gao.spring.dao;
+
+import org.springframework.stereotype.Repository;
+
+// 名字默认是类名首字母小写bookDao
+@Repository
+public class BookDao {
+    private String label = "1";
+
+    public String getLabel() {
+        return label;
+    }
+
+    public void setLabel(String label) {
+        this.label = label;
+    }
+
+    @Override
+    public String toString() {
+        return "BookDao{" +
+                "label='" + label + '\'' +
+                '}';
+    }
+}
+```
+
+注册一个bookDao组件进入ioc容器。
+
+修改MainConfigOfAutowired
+
+```java
+package com.gao.spring.config;
+
+import com.gao.spring.dao.BookDao;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.ComponentScan;
+import org.springframework.context.annotation.Configuration;
+
+/**
+ * 自动装配;
+ *  Spring利用依赖注入(DI) 完成对IOC容器中各个组件的依赖关系赋值
+ *
+ *  1) @Autowired: 自动注入
+ *      1) 默认有限按照类型去容器中找对应的组件 applicationContext.getBean(BookDao.class);  找到就赋值
+ *      2) 如果友多个同一个类型的的Dao 如果找到多个相同类型的组件 再将属性的名称作为组件id去容器中查找
+ *      3) @Qualifier("bookDao") 来指定需要装配的组件的id 而不是使用默认的属性名
+ *      BookService {
+ *          @Autowired
+ *          BookDao bookDao
+ *      }
+ */
+@Configuration
+@ComponentScan({"com.gao.spring.service","com.gao.spring.dao", "com.gao.spring.controller"})
+public class MainConfigOfAutowired {
+
+    @Bean("bookDao2")
+    public BookDao bookDao() {
+        BookDao bookDao = new BookDao();
+        bookDao.setLabel("2");
+        return bookDao;
+    }
+
+}
+
+```
+
+
+
+输出：
+
+```java
+Nov 16, 2021 11:09:35 PM org.springframework.context.annotation.AnnotationConfigApplicationContext prepareRefresh
+INFO: Refreshing org.springframework.context.annotation.AnnotationConfigApplicationContext@136432db: startup date [Tue Nov 16 23:09:35 CST 2021]; root of context hierarchy
+BookService{bookDao=BookDao{label='2'}}
+```
+
+
+
+如果容器中没有BookDao 
+
+1、将BookDao.class的@Repository 注释掉
+
+2、将MainConfigOfAutowired.class配置类当中的@Bean("bookDao2")注释掉 
+
+则会报错 创建bean对象会报错。期望有个bean可以被找到 但是没有找到这个bean
+
+我们修改BookService
+
+将@Autowired(required = false) 加上false
+
+```java
+@Service
+public class BookService {
+
+    // @Qualifier("bookDao2") 指定默认的组件id
+    @Qualifier("bookDao2")
+    @Autowired(required = false)
+    private BookDao bookDao;
+
+    public void print() {
+        System.out.println(bookDao);
+    }
+
+    @Override
+    public String toString() {
+        return "BookService{" +
+                "bookDao=" + bookDao +
+                '}';
+    }
+}
+```
+
+则自动装配说明不是必须要自动装配到这个bean对象。则默认是null
+
+```java
+public class IOCTest_Autowired {
+    @Test
+    public void test01() {
+        AnnotationConfigApplicationContext applicationContext = new AnnotationConfigApplicationContext(MainConfigOfAutowired.class);
+
+        BookService bookService = applicationContext.getBean(BookService.class);
+        System.out.println(bookService);
+
+//        BookDao bookDao = applicationContext.getBean(BookDao.class);
+//        System.out.println(bookDao);
+
+        applicationContext.close();
+    }
+}
+```
+
+输出：
+
+```
+BookService{bookDao=null}
+```
+
+可以装上自动装 装不上就拉到。
+
+
+
+#### @Primary
+
+@Primary 标注以后 自动装配的时候首选这个bean对象 此时@Qualifier要去掉
+
+```java
+@Service
+public class BookService {
+
+    // @Qualifier("bookDao2") 指定默认的组件id
+//    @Qualifier("bookDao")
+    @Autowired(required = false)
+    private BookDao bookDao;
+
+    public void print() {
+        System.out.println(bookDao);
+    }
+
+    @Override
+    public String toString() {
+        return "BookService{" +
+                "bookDao=" + bookDao +
+                '}';
+    }
+}
+
+```
+
+
+
+```java
+@Configuration
+@ComponentScan({"com.gao.spring.service","com.gao.spring.dao", "com.gao.spring.controller"})
+public class MainConfigOfAutowired {
+
+    // @Primary 标注以后 自动装配的时候首选这个bean对象 此时@Qualifier要去掉
+    @Primary
+    @Bean("bookDao2")
+    public BookDao bookDao() {
+        BookDao bookDao = new BookDao();
+        bookDao.setLabel("2");
+        return bookDao;
+    }
+
+}
+```
+
+
+
+如果我们此时将@Qualifier 加上则明确指定来一个对象 那么此时就会按照@Qualifier指定的对象去使用具体的bean对象
+
+
+
+### (2) @Resource @Inject
+
+#### @Resource
+
+```
+@Resource:
+ *          可以和@Autowired 一样可以实现自动装配功能 默认是按照组件名称进行装配的。
+ *          没有能支持@Primary功能，没有支持@Autowired(required=false)
+```
+
+
+
+这两个是java的规范。是java的注解 不是spring的注解。spring支持java规范的注解。
+
+例如
+
+```java
+package com.gao.spring.service;
+
+import com.gao.spring.dao.BookDao;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.stereotype.Service;
+
+import javax.annotation.Resource;
+
+@Service
+public class BookService {
+
+    // @Qualifier("bookDao2") 指定默认的组件id
+//    @Qualifier("bookDao")
+//    @Autowired(required = false)
+    @Resource
+    private BookDao bookDao;
+
+    public void print() {
+        System.out.println(bookDao);
+    }
+
+    @Override
+    public String toString() {
+        return "BookService{" +
+                "bookDao=" + bookDao +
+                '}';
+    }
+}
+```
+
+使用@Resource注解进行bean注入
+
+```java
+@Configuration
+@ComponentScan({"com.gao.spring.service","com.gao.spring.dao", "com.gao.spring.controller"})
+public class MainConfigOfAutowired {
+
+    // @Primary 标注以后 自动装配的时候首选这个bean对象 此时@Qualifier要去掉
+    @Primary
+    @Bean("bookDao2")
+    public BookDao bookDao() {
+        BookDao bookDao = new BookDao();
+        bookDao.setLabel("2");
+        return bookDao;
+    }
+
+}
+```
+
+我们发现最后
+
+没有使用@Primary的注解的bean对象
+
+而是使用label为1的对象。默认是按照属性名称进行装配 也可以使用name来指定id
+
+```java
+@Service
+public class BookService {
+
+    // @Qualifier("bookDao2") 指定默认的组件id
+//    @Qualifier("bookDao")
+//    @Autowired(required = false)
+//    @Resource  //默认使用 属性名称进行装配
+    @Resource(name = "bookDao2")
+    private BookDao bookDao;
+
+    public void print() {
+        System.out.println(bookDao);
+    }
+
+    @Override
+    public String toString() {
+        return "BookService{" +
+                "bookDao=" + bookDao +
+                '}';
+    }
+}
+```
+
+
+
+#### @Inject
+
+```
+@Inject:
+ *          需要导入javax.inject的包 和Autowired的功能一样 支持@Primary
+ *          但是Inject没有属性可以设置
+```
+
+
+
+需要导入pom依赖
+
+```
+		<dependency>
+            <groupId>javax.inject</groupId>
+            <artifactId>javax.inject</artifactId>
+            <version>1</version>
+        </dependency>
+```
+
+就可以直接
+
+```java
+@Service
+public class BookService {
+
+    // @Qualifier("bookDao2") 指定默认的组件id
+//    @Qualifier("bookDao")
+//    @Autowired(required = false)
+//    @Resource  //默认使用 属性名称进行装配
+//    @Resource(name = "bookDao2")
+    @Inject
+    private BookDao bookDao;
+
+    public void print() {
+        System.out.println(bookDao);
+    }
+
+    @Override
+    public String toString() {
+        return "BookService{" +
+                "bookDao=" + bookDao +
+                '}';
+    }
+}
+```
+
+```java
+@Configuration
+@ComponentScan({"com.gao.spring.service","com.gao.spring.dao", "com.gao.spring.controller"})
+public class MainConfigOfAutowired {
+
+    // @Primary 标注以后 自动装配的时候首选这个bean对象 此时@Qualifier要去掉
+    @Primary
+    @Bean("bookDao2")
+    public BookDao bookDao() {
+        BookDao bookDao = new BookDao();
+        bookDao.setLabel("2");
+        return bookDao;
+    }
+
+}
+```
+
+```java
+public class IOCTest_Autowired {
+    @Test
+    public void test01() {
+        AnnotationConfigApplicationContext applicationContext = new AnnotationConfigApplicationContext(MainConfigOfAutowired.class);
+
+        BookService bookService = applicationContext.getBean(BookService.class);
+        System.out.println(bookService);
+
+//        BookDao bookDao = applicationContext.getBean(BookDao.class);
+//        System.out.println(bookDao);
+
+        applicationContext.close();
+    }
+}
+```
+
+输出：
+
+```
+Nov 16, 2021 11:41:58 PM org.springframework.context.annotation.AnnotationConfigApplicationContext prepareRefresh
+INFO: Refreshing org.springframework.context.annotation.AnnotationConfigApplicationContext@136432db: startup date [Tue Nov 16 23:41:58 CST 2021]; root of context hierarchy
+Nov 16, 2021 11:41:58 PM org.springframework.beans.factory.annotation.AutowiredAnnotationBeanPostProcessor <init>
+INFO: JSR-330 'javax.inject.Inject' annotation found and supported for autowiring
+BookService{bookDao=BookDao{label='2'}}
+Nov 16, 2021 11:41:58 PM org.springframework.context.annotation.AnnotationConfigApplicationContext doClose
+INFO: Closing org.springframework.context.annotation.AnnotationConfigApplicationContext@136432db: startup date [Tue Nov 16 23:41:58 CST 2021]; root of context hierarchy
+
+```
+
+得到输出为使用2
+
+故Inject支持@Primary
+
+
+
+### (3)@Autowired:构造器\参数\方法\属性 都可以标注这个注解
+
+```
+@Autowired:构造器\参数\方法\属性 都可以标注这个注解
+ *      1) 标注在方法位置 则调用的时候会 Spring容器创建当前对象 就会调用这个方法完成赋值 这个方法用的参数Car car 自定义的值将会从ioc容器中获取
+ *      2）标注在构造器上
+ *      3）标注在参数位置
+```
+
+如果只有一个有参构造器则可以不用注释 直接调用唯一的bean注入。
+
+```java
+package com.gao.spring.bean;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Component;
+
+//默认加载ioc容器中的组件 容器启动会调用无参构造器创建对象 再进行初始化赋值等操作
+@Component
+public class Boss {
+
+//    @Autowired
+    private Car car;
+
+    //构造器要用的组件 都是从容器中获取的
+//    @Autowired  标注在方法上
+//    public Boss(@Autowired Car car) 标注在参数上
+    public Boss(Car car) {
+        this.car = car;
+        System.out.println("Boss...有参构造器");
+    }
+
+    public Car getCar() {
+        return car;
+    }
+
+//    @Autowired
+    //标注方法 Spring容器创建当前对象 就会调用这个方法完成赋值
+    // 这个方法用的参数Car car，自定义的值将会从ioc容器中获取
+    public void setCar(Car car) {
+        this.car = car;
+    }
+
+    @Override
+    public String toString() {
+        return "Boss{" +
+                "car=" + car +
+                '}';
+    }
+}
+
+```
+
+```java
+package com.gao.spring.bean;
+
+import org.springframework.stereotype.Component;
+
+@Component
+public class Car {
+    public Car() {
+        System.out.println("car constructor...");
+    }
+
+    public void init() {
+        System.out.println("car ... init ...");
+    }
+
+    public void destory() {
+        System.out.println("car ... destory ...");
+    }
+}
+
+```
+
+```java
+public class IOCTest_Autowired {
+    @Test
+    public void test01() {
+        AnnotationConfigApplicationContext applicationContext = new AnnotationConfigApplicationContext(MainConfigOfAutowired.class);
+
+        BookService bookService = applicationContext.getBean(BookService.class);
+        System.out.println(bookService);
+
+//        BookDao bookDao = applicationContext.getBean(BookDao.class);
+//        System.out.println(bookDao);
+
+        Boss boss = applicationContext.getBean(Boss.class);
+        System.out.println(boss);
+        Car car = applicationContext.getBean(Car.class);
+        System.out.println(car);
+
+        applicationContext.close();
+    }
+}
+```
+
+输出：
+
+```
+postProcessAfterInitialization ....dog=>com.gao.spring.bean.Dog@327b636c
+BookService{bookDao=BookDao{label='2'}}
+Boss{car=com.gao.spring.bean.Car@5ad851c9}
+com.gao.spring.bean.Car@5ad851c9
+Nov 17, 2021 12:17:21 AM org.springframework.context.annotation.AnnotationConfigApplicationContext doClose
+INFO: Closing org.springframework.context.annotation.AnnotationConfigApplicationContext@136432db: startup date [Wed Nov 17 00:17:20 CST 2021]; root of context hierarchy
+Dog ... @PreDestroy
+cat ... destroy ... 
+```
+
+
+
+
+
+我们再来测试一个类
+
+```java
+package com.gao.spring.bean;
+
+public class Color {
+    private Car car;
+
+    public Car getCar() {
+        return car;
+    }
+
+    public void setCar(Car car) {
+        this.car = car;
+    }
+
+    @Override
+    public String toString() {
+        return "Color{" +
+                "car=" + car +
+                '}';
+    }
+}
+
+```
+
+什么注解都不标，在配置文件中声明：
+
+```java
+package com.gao.spring.config;
+
+import com.gao.spring.bean.Car;
+import com.gao.spring.bean.Color;
+import com.gao.spring.dao.BookDao;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.ComponentScan;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Primary;
+
+/**
+ * 自动装配;
+ *  Spring利用依赖注入(DI) 完成对IOC容器中各个组件的依赖关系赋值
+ *
+ *  1) @Autowired: 自动注入
+ *      1) 默认有限按照类型去容器中找对应的组件 applicationContext.getBean(BookDao.class);  找到就赋值
+ *      2) 如果友多个同一个类型的的Dao 如果找到多个相同类型的组件 再将属性的名称作为组件id去容器中查找
+ *      3) @Qualifier("bookDao") 来指定需要装配的组件的id 而不是使用默认的属性名
+ *      4) 自动装配默认一定要将属性赋值好，没有就会报错
+ *      5) @Primary: 让Spring进行自动装配的时候 默认使用首选的bean
+ *              也可以继续使用@Qualifier指定需要装配的bean的名字
+ *      BookService {
+ *          @Autowired
+ *          BookDao bookDao
+ *      }
+ *  2) Spring还支持使用@Resource [JSR250规范] 和 @Inject注解 [JSR330规范] [java规范的注解 JSR的规范 上面的注解是spring的注解 Spring支持java规范]
+ *      @Resource:
+ *          可以和@Autowired 一样可以实现自动装配功能 默认是按照组件名称进行装配的。
+ *          没有能支持@Primary功能，没有支持@Autowired(required=false)
+ *      @Inject:
+ *          需要导入javax.inject的包 和Autowired的功能一样 支持@Primary
+ *          但是Inject没有属性可以设置
+ * @Autowired: Spring定义的 @Resource\@Inject 都是java规范
+ *
+ * AutowiredAnnotationBeanPostProcessor ： 解析完成自动装配功能
+ *
+ *  3）@Autowired:构造器\参数\方法\属性 都可以标注这个注解
+ *      1) [标注在方法位置]：则调用的时候会 Spring容器创建当前对象 就会调用这个方法完成赋值 这个方法用的参数Car car 自定义的值将会从ioc容器中获取
+ *      2）[标注在构造器上]：如果组件只有一个有参构造器 这个有参构造器参数的Autowired可以省略 参数位置组件可以自动从容器中获取
+ *      3）标注在参数位置：
+ */
+@Configuration
+@ComponentScan({"com.gao.spring.service","com.gao.spring.dao", "com.gao.spring.controller", "com.gao.spring.bean"})
+public class MainConfigOfAutowired {
+
+    // @Primary 标注以后 自动装配的时候首选这个bean对象 此时@Qualifier要去掉
+    @Primary
+    @Bean("bookDao2")
+    public BookDao bookDao() {
+        BookDao bookDao = new BookDao();
+        bookDao.setLabel("2");
+        return bookDao;
+    }
+
+    /**
+     * @Bean标注的方法 创建对象的时候 方法参数值从容器中获取(默认) 也可以标注@Autowired
+     * @param car
+     * @return
+     */
+    @Bean
+    public Color color(Car car) {
+        Color color = new Color();
+        color.setCar(car);
+        return color;
+    }
+
+}
+```
+
+
+
+```java
+public class IOCTest_Autowired {
+    @Test
+    public void test01() {
+        AnnotationConfigApplicationContext applicationContext = new AnnotationConfigApplicationContext(MainConfigOfAutowired.class);
+
+        BookService bookService = applicationContext.getBean(BookService.class);
+        System.out.println(bookService);
+
+//        BookDao bookDao = applicationContext.getBean(BookDao.class);
+//        System.out.println(bookDao);
+
+        Boss boss = applicationContext.getBean(Boss.class);
+        System.out.println(boss);
+        Car car = applicationContext.getBean(Car.class);
+        System.out.println(car);
+
+        Color color = applicationContext.getBean(Color.class);
+        System.out.println(color);
+
+        applicationContext.close();
+    }
+}
+```
+
+输出：
+
+```
+Boss{car=com.gao.spring.bean.Car@37e547da}
+com.gao.spring.bean.Car@37e547da
+Color{car=com.gao.spring.bean.Car@37e547da}
+```
+
+都从容器中获取。
+
+
+
+
+
+
+
+
+
+
+
+### 小结：
+
+```
+/**
+ * 自动装配;
+ *  Spring利用依赖注入(DI) 完成对IOC容器中各个组件的依赖关系赋值
+ *
+ *  1) @Autowired: 自动注入
+ *      1) 默认有限按照类型去容器中找对应的组件 applicationContext.getBean(BookDao.class);  找到就赋值
+ *      2) 如果友多个同一个类型的的Dao 如果找到多个相同类型的组件 再将属性的名称作为组件id去容器中查找
+ *      3) @Qualifier("bookDao") 来指定需要装配的组件的id 而不是使用默认的属性名
+ *      4) 自动装配默认一定要将属性赋值好，没有就会报错
+ *      5) @Primary: 让Spring进行自动装配的时候 默认使用首选的bean
+ *              也可以继续使用@Qualifier指定需要装配的bean的名字
+ *      BookService {
+ *          @Autowired
+ *          BookDao bookDao
+ *      }
+ *  2) Spring还支持使用@Resource [JSR250规范] 和 @Inject注解 [JSR330规范] [java规范的注解 JSR的规范 上面的注解是spring的注解 Spring支持java规范]
+ *      @Resource:
+ *          可以和@Autowired 一样可以实现自动装配功能 默认是按照组件名称进行装配的。
+ *          没有能支持@Primary功能，没有支持@Autowired(required=false)
+ *      @Inject:
+ *          需要导入javax.inject的包 和Autowired的功能一样 支持@Primary
+ *          但是Inject没有属性可以设置
+ * @Autowired: Spring定义的 @Resource\@Inject 都是java规范
+ *
+ * AutowiredAnnotationBeanPostProcessor ： 解析完成自动装配功能
+ *
+ *  3）@Autowired:构造器\参数\方法\属性 都可以标注这个注解
+ *      1) [标注在方法位置]： @Bean+方法参数 参数从容器中获取； 默认不写Autowired 效果是一样的
+ *                  则调用的时候会 Spring容器创建当前对象 就会调用这个方法完成赋值 这个方法用的参数Car car 自定义的值将会从ioc容器中获取
+ *      2）[标注在构造器上]：如果组件只有一个有参构造器 这个有参构造器参数的Autowired可以省略 参数位置组件可以自动从容器中获取
+ *      3）标注在参数位置：
+ *
+ *  4) 自定义组件想要使用Spring容器底层的一些组件(ApplicationContext, BeanFactory, xxx)
+ *      自定义组件实现xxxAware；在创建对象的时候 会调用接口规定的方法注入相关组件:Aware;
+ *      把Spring底层一些组件注入到自己定义的Bean中
+ *      xxxAware:功能使用xxxProcessor
+ *          ApplicationContextAware ==> ApplicationContextAwareProcessor;
+ */
+```
+
+推荐使用@Autowired 结合@Primary使用
+
+
+
+自动装配原理与这个类有关系：
+
+AutowiredAnnotationBeanPostProcessor
+
+
+
+## @Profile注解
+
+```
+/**
+ * Profile:
+ *      Spring为我们提供的可以根据当前环境 动态的激活和切换一系列bean组件的功能
+ * 开发环境\测试环境\生产环境
+ * 数据源 (/A)(/B)(/C)
+ * @Profile：指定组件在哪个环境的情况下才能被注册到容器当中，当不指定的情况下 任何的环境都能注册到这个组件的容器当中
+ *
+ * 1）加了环境标识的bean 只有这个环境被激活的时候才能被注册到容器中 默认是default 如果标识为@Profile("default") 则默认加载这一个
+ * 2）写在配置类上，只有在指定的环境上的时候，整个配置类里面的所有配置才会生效
+ * 3) 没有标志环境的bean在任何环境都是加载的
+ */
+```
+
+
+
+三种环境 测试 开发 线上环境的转换
+
+配置文件：dbconfig.properties
+
+```xml
+db.user=root
+db.password=123456
+db.driverClass=com.mysql.jdbc.Driver
+```
+
+配置类
+
+```java
+package com.gao.spring.config;
+
+import com.mchange.v2.c3p0.ComboPooledDataSource;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.EmbeddedValueResolverAware;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.PropertySource;
+import org.springframework.util.StringValueResolver;
+
+import javax.sql.DataSource;
+
+/**
+ * Profile:
+ *      Spring为我们提供的可以根据当前环境 动态的激活和切换一系列bean组件的功能
+ * 开发环境\测试环境\生产环境
+ * 数据源 (/A)(/B)(/C)
+ * @Profile
+ */
+@PropertySource("classpath:/dbconfig.properties")
+@Configuration
+public class MainConfigOfProfile implements EmbeddedValueResolverAware {
+
+    @Value("${db.user}")
+    private String user;
+
+    private StringValueResolver valueResolver;
+
+    private String driverClass;
+
+    @Bean("testDataSource")
+    public DataSource dataSourceTest(@Value("${db.password}") String pwd) throws Exception{
+        ComboPooledDataSource dataSource = new ComboPooledDataSource();
+        dataSource.setUser(user);
+        dataSource.setPassword(pwd);
+        dataSource.setJdbcUrl("jdbc:mysql://localhost:3306/test");
+        dataSource.setDriverClass(driverClass);
+        return null;
+    }
+
+    @Bean("devDataSource")
+    public DataSource dataSourceTestDev(@Value("${db.password}") String pwd) throws Exception{
+        ComboPooledDataSource dataSource = new ComboPooledDataSource();
+        dataSource.setUser(user);
+        dataSource.setPassword(pwd);
+        dataSource.setJdbcUrl("jdbc:mysql://localhost:3306/ssm_crud");
+        dataSource.setDriverClass(driverClass);
+        return null;
+    }
+
+    @Bean("prodDataSource")
+    public DataSource dataSourceProd(@Value("${db.password}") String pwd) throws Exception{
+        ComboPooledDataSource dataSource = new ComboPooledDataSource();
+        dataSource.setUser(user);
+        dataSource.setPassword(pwd);
+        dataSource.setJdbcUrl("jdbc:mysql://localhost:3306/scw_0515");
+        dataSource.setDriverClass(driverClass);
+        return null;
+    }
+
+    @Override
+    public void setEmbeddedValueResolver(StringValueResolver resolver) {
+        this.valueResolver = resolver;
+        this.driverClass = valueResolver.resolveStringValue("${db.driverClass}");
+    }
+}
+
+```
+
+测试类获取bean
+
+```java
+package com.gao.spring;
+
+import com.gao.spring.bean.Boss;
+import com.gao.spring.bean.Car;
+import com.gao.spring.bean.Color;
+import com.gao.spring.config.MainConfigOfAutowired;
+import com.gao.spring.config.MainConfigOfProfile;
+import com.gao.spring.service.BookService;
+import org.junit.Test;
+import org.springframework.context.annotation.AnnotationConfigApplicationContext;
+
+import javax.sql.DataSource;
+
+public class IOCTest_Profile {
+    @Test
+    public void test01() {
+        AnnotationConfigApplicationContext applicationContext = new AnnotationConfigApplicationContext(MainConfigOfProfile.class);
+
+        String[] beanNamesForType = applicationContext.getBeanNamesForType(DataSource.class);
+        for(String str : beanNamesForType) {
+            System.out.println(str);
+        }
+        applicationContext.close();
+    }
+}
+
+```
+
+
+
+输出得到三个配置
+
+```
+testDataSource
+devDataSource
+prodDataSource
+```
+
+
+
+如何激活不同的环境的配置。
+
+则使用@profile
+
+```
+@Profile：指定组件在哪个环境的情况下才能被注册到容器当中，当不指定的情况下 任何的环境都能注册到这个组件的容器当中
+
+如果标志为@Profile("default")表示默认加载这一个 其他name可以随意
+```
+
+加上这个注释在各个bean上面
+
+```java
+package com.gao.spring.config;
+
+import com.mchange.v2.c3p0.ComboPooledDataSource;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.EmbeddedValueResolverAware;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Profile;
+import org.springframework.context.annotation.PropertySource;
+import org.springframework.util.StringValueResolver;
+
+import javax.sql.DataSource;
+
+/**
+ * Profile:
+ *      Spring为我们提供的可以根据当前环境 动态的激活和切换一系列bean组件的功能
+ * 开发环境\测试环境\生产环境
+ * 数据源 (/A)(/B)(/C)
+ * @Profile：指定组件在哪个环境的情况下才能被注册到容器当中，当不指定的情况下 任何的环境都能注册到这个组件的容器当中
+ */
+@PropertySource("classpath:/dbconfig.properties")
+@Configuration
+public class MainConfigOfProfile implements EmbeddedValueResolverAware {
+
+    @Value("${db.user}")
+    private String user;
+
+    private StringValueResolver valueResolver;
+
+    private String driverClass;
+
+    @Profile("test")
+    @Bean("testDataSource")
+    public DataSource dataSourceTest(@Value("${db.password}") String pwd) throws Exception{
+        ComboPooledDataSource dataSource = new ComboPooledDataSource();
+        dataSource.setUser(user);
+        dataSource.setPassword(pwd);
+        dataSource.setJdbcUrl("jdbc:mysql://localhost:3306/test");
+        dataSource.setDriverClass(driverClass);
+        return null;
+    }
+
+    @Profile("dev")
+    @Bean("devDataSource")
+    public DataSource dataSourceTestDev(@Value("${db.password}") String pwd) throws Exception{
+        ComboPooledDataSource dataSource = new ComboPooledDataSource();
+        dataSource.setUser(user);
+        dataSource.setPassword(pwd);
+        dataSource.setJdbcUrl("jdbc:mysql://localhost:3306/ssm_crud");
+        dataSource.setDriverClass(driverClass);
+        return null;
+    }
+
+    @Profile("prod")
+    @Bean("prodDataSource")
+    public DataSource dataSourceProd(@Value("${db.password}") String pwd) throws Exception{
+        ComboPooledDataSource dataSource = new ComboPooledDataSource();
+        dataSource.setUser(user);
+        dataSource.setPassword(pwd);
+        dataSource.setJdbcUrl("jdbc:mysql://localhost:3306/scw_0515");
+        dataSource.setDriverClass(driverClass);
+        return null;
+    }
+
+    @Override
+    public void setEmbeddedValueResolver(StringValueResolver resolver) {
+        this.valueResolver = resolver;
+        this.driverClass = valueResolver.resolveStringValue("${db.driverClass}");
+    }
+}
+
+```
+
+标识当前各个bean在具体的环境下才能被注册到ioc容器当中。
+
+测试类
+
+```java
+public class IOCTest_Profile {
+    @Test
+    public void test01() {
+        AnnotationConfigApplicationContext applicationContext = new AnnotationConfigApplicationContext(MainConfigOfProfile.class);
+
+        String[] beanNamesForType = applicationContext.getBeanNamesForType(DataSource.class);
+        for(String str : beanNamesForType) {
+            System.out.println(str);
+        }
+        applicationContext.close();
+    }
+}
+
+```
+
+此时输出为空。因为加了环境标识 只有具体环境激活才能被注册到ioc容器当中。
+
+
+
+如果标志为@Profile("default")表示默认加载这一个
+
+
+
+如何设置运行环境为具体某个环境？
+
+```
+1. 使用命令行动态参数：在虚拟机参数位置加载 -Dspring.profiles.active=test
+2. 使用代码的方式激活某种环境
+```
+
+```java
+public class IOCTest_Profile {
+
+    //1. 使用命令行动态参数：在虚拟机参数位置加载 -Dspring.profiles.active=test
+    //2. 使用代码的方式激活某种环境：
+    @Test
+    public void test01() {
+//        AnnotationConfigApplicationContext applicationContext = new AnnotationConfigApplicationContext(MainConfigOfProfile.class);
+
+        AnnotationConfigApplicationContext applicationContext = new AnnotationConfigApplicationContext();
+        //1 创建一个applicationContext对象
+        //2 设置需要激活的环境
+        applicationContext.getEnvironment().setActiveProfiles("dev");
+        //3 注册主配置类
+        applicationContext.register(MainConfigOfProfile.class);
+        //4 启动刷新器
+        applicationContext.refresh();
+
+        String[] beanNamesForType = applicationContext.getBeanNamesForType(DataSource.class);
+        for(String str : beanNamesForType) {
+            System.out.println(str);
+        }
+        applicationContext.close();
+    }
+}
+
+```
+
+输出：
+
+```
+devDataSource
+```
+
+
+
+除了写在bean上面 还可以写在类的上面
+
+```java
+package com.gao.spring.config;
+
+import com.gao.spring.bean.Yellow;
+import com.mchange.v2.c3p0.ComboPooledDataSource;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.EmbeddedValueResolverAware;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Profile;
+import org.springframework.context.annotation.PropertySource;
+import org.springframework.util.StringValueResolver;
+
+import javax.sql.DataSource;
+
+/**
+ * Profile:
+ *      Spring为我们提供的可以根据当前环境 动态的激活和切换一系列bean组件的功能
+ * 开发环境\测试环境\生产环境
+ * 数据源 (/A)(/B)(/C)
+ * @Profile：指定组件在哪个环境的情况下才能被注册到容器当中，当不指定的情况下 任何的环境都能注册到这个组件的容器当中
+ *
+ * 1）加了环境标识的bean 只有这个环境被激活的时候才能被注册到容器中 默认是default 如果标识为@Profile("default") 则默认加载这一个
+ */
+@Profile("test")
+@PropertySource("classpath:/dbconfig.properties")
+@Configuration
+public class MainConfigOfProfile implements EmbeddedValueResolverAware {
+
+    @Value("${db.user}")
+    private String user;
+
+    private StringValueResolver valueResolver;
+
+    private String driverClass;
+
+   
+    @Bean
+    public Yellow yellow() {
+        return new Yellow();
+    }
+
+    @Profile("test")
+    @Bean("testDataSource")
+    public DataSource dataSourceTest(@Value("${db.password}") String pwd) throws Exception{
+        ComboPooledDataSource dataSource = new ComboPooledDataSource();
+        dataSource.setUser(user);
+        dataSource.setPassword(pwd);
+        dataSource.setJdbcUrl("jdbc:mysql://localhost:3306/test");
+        dataSource.setDriverClass(driverClass);
+        return null;
+    }
+
+    @Profile("dev")
+    @Bean("devDataSource")
+    public DataSource dataSourceTestDev(@Value("${db.password}") String pwd) throws Exception{
+        ComboPooledDataSource dataSource = new ComboPooledDataSource();
+        dataSource.setUser(user);
+        dataSource.setPassword(pwd);
+        dataSource.setJdbcUrl("jdbc:mysql://localhost:3306/ssm_crud");
+        dataSource.setDriverClass(driverClass);
+        return null;
+    }
+
+    @Profile("prod")
+    @Bean("prodDataSource")
+    public DataSource dataSourceProd(@Value("${db.password}") String pwd) throws Exception{
+        ComboPooledDataSource dataSource = new ComboPooledDataSource();
+        dataSource.setUser(user);
+        dataSource.setPassword(pwd);
+        dataSource.setJdbcUrl("jdbc:mysql://localhost:3306/scw_0515");
+        dataSource.setDriverClass(driverClass);
+        return null;
+    }
+
+    @Override
+    public void setEmbeddedValueResolver(StringValueResolver resolver) {
+        this.valueResolver = resolver;
+        this.driverClass = valueResolver.resolveStringValue("${db.driverClass}");
+    }
+}
+
+```
+
+
+
+```java
+public class IOCTest_Profile {
+
+    //1. 使用命令行动态参数：在虚拟机参数位置加载 -Dspring.profiles.active=test
+    //2. 使用代码的方式激活某种环境
+    @Test
+    public void test01() {
+//        AnnotationConfigApplicationContext applicationContext = new AnnotationConfigApplicationContext(MainConfigOfProfile.class);
+
+        AnnotationConfigApplicationContext applicationContext = new AnnotationConfigApplicationContext();
+        //1 创建一个applicationContext对象
+        //2 设置需要激活的环境
+        applicationContext.getEnvironment().setActiveProfiles("dev");
+        //3 注册主配置类
+        applicationContext.register(MainConfigOfProfile.class);
+        //4 启动刷新器
+        applicationContext.refresh();
+
+        String[] beanNamesForType = applicationContext.getBeanNamesForType(DataSource.class);
+        for(String str : beanNamesForType) {
+            System.out.println(str);
+        }
+        applicationContext.close();
+    }
+}
+
+```
+
+输出为空
+
+因为只有test环境才会生效
+
+
+
+修改为test
+
+输出：
+
+```
+testDataSource
+```
+
