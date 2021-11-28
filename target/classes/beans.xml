@@ -2,7 +2,8 @@
 <beans xmlns="http://www.springframework.org/schema/beans"
        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
        xmlns:context="http://www.springframework.org/schema/context"
-       xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd">
+       xmlns:aop="http://www.springframework.org/schema/aop"
+       xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd http://www.springframework.org/schema/aop http://www.springframework.org/schema/aop/spring-aop.xsd">
 
     <context:property-placeholder location="classpath:person.properties"/>
     <!--包标注了@Controller/@Server/@Repository/@Component就会自动加入包里面-->
@@ -13,5 +14,7 @@
         <property name="nickName" value="${person.nickName}"/>
     </bean>
 
+    <!--开启基于注解版切面功能-->
+    <aop:aspectj-autoproxy></aop:aspectj-autoproxy>
 
 </beans>
